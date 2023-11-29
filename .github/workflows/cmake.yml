@@ -87,7 +87,12 @@ jobs:
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /opt/ghc
 
-        conda install cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries -c "nvidia/label/cuda-${{ matrix.cuda-version }}.0"
+        addon=""
+        cuda_version=${{ matrix.cuda-version }}
+        [ "$cuda_version" = "12.1" ] && cuda_version="12.1.1" && addon="cuda-cudart-static cuda-nvrtc"
+        [ "$cuda_version" = "11.8" ] && cuda_version="11.8.0"
+
+        conda install cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
 
         echo CUDA_INCLUDE_DIRS=/usr/share/miniconda3/include >> "$GITHUB_ENV"
 
