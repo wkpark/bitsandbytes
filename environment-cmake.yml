@@ -21,7 +21,6 @@ dependencies:
   - pytest-cases # more readable and composable parametrized tests
   - ipython      # better interactive shell
   - debugpy      # debugger-support for VSCode
-  - ruff         # linting
   - yapf         # code formatting
   - monkeytype   # infer type annotations
   - rich         # better, colored tracebacks, etc
