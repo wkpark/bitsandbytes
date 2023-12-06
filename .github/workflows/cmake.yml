@@ -1,5 +1,3 @@
-# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: CMake on multiple platforms
 
 on:
@@ -16,12 +14,6 @@ jobs:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
       fail-fast: false
 
-      # Set up a matrix to run the following 3 configurations:
-      # 1. <Windows, Release, latest MSVC compiler toolchain on the default runner image, default generator>
-      # 2. <Linux, Release, latest GCC compiler toolchain on the default runner image, default generator>
-      # 3. <Linux, Release, latest Clang compiler toolchain on the default runner image, default generator>
-      #
-      # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ['3.10']
@@ -49,12 +41,22 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Setup Mambaforge
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
+        channels: conda-forge,nvidia,pytorch,defaults
         miniforge-variant: Mambaforge
         miniforge-version: latest
         activate-environment: bnb-env
         use-mamba: true
+
+    - uses: conda-incubator/setup-miniconda@v3
+      with:
+        channels: conda-forge,nvidia,pytorch,defaults
+        activate-environment: bnb-env
+        environment-file: environment-cmake.yml
+        use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
+        auto-activate-base: true
+        python-version: ${{ matrix.python-version }}
 
     - name: Get Date
       id: get-date
@@ -63,22 +65,14 @@ jobs:
 
     - name: Cache conda env
       id: cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       env:
         # Increase this value to reset cache if environment.yml has not changed
-        CACHE_NUMBER: 0
+        CACHE_NUMBER: 5
       with:
         path: ~/conda_pkgs_dir
         key:
-          ${{ runner.os }}--${{ steps.get-date.outputs.today }}--conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment.yml') }}
-
-    - uses: conda-incubator/setup-miniconda@v2
-      with:
-        activate-environment: bnb-env
-        environment-file: environment.yml
-        use-only-tar-bz2: true # IMPORTANT: This needs to be set for caching to work properly!
-        auto-activate-base: true
-        python-version: ${{ matrix.python-version }}
+          ${{ runner.os }}--${{ steps.get-date.outputs.today }}--conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('environment-cmake.yml') }}
 
     - name: Cuda toolkit for linux
       if: matrix.os == 'ubuntu-latest'
@@ -94,17 +88,19 @@ jobs:
 
         conda install cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
 
-        echo CUDA_INCLUDE_DIRS=/usr/share/miniconda3/include >> "$GITHUB_ENV"
-
-        NVCC=$(find /usr/share/miniconda3 -name nvcc)
+        find "${{ env.CONDA }}" -name nvcc
+        NVCC=$(find "${{ env.CONDA }}" -name nvcc | head -1)
         dirname $NVCC >> "$GITHUB_PATH"
-        CUDA_HOME=$(dirname `dirname $NVCC`)
-        echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
+        dir=$(dirname "$NVCC")
+        CUDA_HOME=$(dirname "$dir")
+        echo CUDA_HOME="$CUDA_HOME"
+        echo NVCC="$NVCC"
+        echo CUDA_HOME="$CUDA_HOME" >> "$GITHUB_ENV"
         export CUDA_HOME
         $NVCC --version
 
     - name: Update environment
-      run: mamba env update -n bnb-env -f environment.yml
+      run: mamba env update -n bnb-env -f environment-cmake.yml
       if: steps.cache.outputs.cache-hit != 'true'
 
     - name: Set reusable strings
@@ -129,7 +125,7 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        "-DCOMPUTE_CAPABILITY=60;61;62;70;72;75;80;86;87;89;90"
+        -DCOMPUTE_CAPABILITY="60;61;62;70;72;75;80;86;87;89;90"
         -S ${{ github.workspace }}
 
     - name: Build
@@ -142,7 +138,7 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        "-DCOMPUTE_CAPABILITY=60;61;62;70;72;75;80;86;87;89;90"
+        -DCOMPUTE_CAPABILITY="60;61;62;70;72;75;80;86;87;89;90"
         -DNO_CUBLASLT=ON
         -S ${{ github.workspace }}
 
@@ -155,7 +151,7 @@ jobs:
         -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
         -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        "-DCOMPUTE_CAPABILITY=60;61;62;70;72;75;80;86;87;89;90"
+        -DCOMPUTE_CAPABILITY="60;61;62;70;72;75;80;86;87;89;90"
         -DNO_CUBLASLT=ON
         -DBUILD_CUDA=OFF
         -S ${{ github.workspace }}
