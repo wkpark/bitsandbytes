@@ -5,7 +5,7 @@
 import glob
 import os
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup, Extension
 
 
 libs = list(glob.glob("./bitsandbytes/libbitsandbytes*.so"))
@@ -36,6 +36,7 @@ setup(
     },
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
+    ext_modules=[Extension("bitsandbytes", sources=[], language="c")],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
