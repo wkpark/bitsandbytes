@@ -25,10 +25,14 @@ list(APPEND SRC_FILES ${CPP_FILES})
 
 message(STATUS "BUILD_CUDA := ${BUILD_CUDA}")
 message(STATUS "NO_CUBLASLT := ${NO_CUBLASLT}")
+message(STATUS "BUILD_MPS := ${BUILD_MPS}")
 
 set(BNB_OUTPUT_NAME "bitsandbytes")
 
 if(BUILD_CUDA)
+    if(APPLE)
+        message(FATAL_ERROR "CUDA is not supported on macOS")
+    endif()
     enable_language(CUDA) # This will fail if CUDA is not found
 
     # Convert the CUDA version from X.Y.z to XY. There's probably a shorter way of doing this
@@ -87,19 +91,46 @@ if(BUILD_CUDA)
     if(NO_CUBLASLT)
         string(APPEND BNB_OUTPUT_NAME "_nocublaslt")
     endif()
+    set(GPU_SOURCES)
+elseif(BUILD_MPS)
+    if(NOT APPLE)
+        message(FATAL_ERROR "MPS is only supported on macOS")
+    endif()
+    message("Building MPS support")
+    string(APPEND BNB_OUTPUT_NAME "_mps")
+    project(bitsandbytes LANGUAGES CXX OBJCXX)
+    add_compile_definitions(BUILD_MPS)
+    set(METAL_SOURCE csrc/mps_kernels.metal)
+    add_custom_command(OUTPUT "mps_kernels.air"
+                   COMMAND xcrun metal -c -O2 "${CMAKE_SOURCE_DIR}/${METAL_SOURCE}"
+                   DEPENDS "${METAL_SOURCE}"
+                   COMMENT "Compile Metal kernels"
+                   VERBATIM)
+    add_custom_command(OUTPUT "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib"
+                   COMMAND xcrun metallib "mps_kernels.air" -o "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib"
+                   DEPENDS "mps_kernels.air"
+                   COMMENT "Build Metallib"
+                   VERBATIM)
+    add_custom_target(metallib DEPENDS "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib")
+    set(GPU_SOURCES csrc/mps_ops.mm)
 else()
     message(STATUS "Building CPU Only")
     string(APPEND BNB_OUTPUT_NAME "_cpu")
     if(NO_CUBLASLT)
         message(WARNING "We're building in CPU only mode but NO_CUBLASLT is enabled. It will have no effect.")
     endif()
+    set(GPU_SOURCES)
 endif()
 
 set_source_files_properties(${CPP_FILES} PROPERTIES LANGUAGE CXX)
-add_library(bitsandbytes SHARED ${SRC_FILES})
+add_library(bitsandbytes SHARED ${SRC_FILES} ${GPU_SOURCES})
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_include_directories(bitsandbytes PUBLIC csrc include)
 target_compile_features(bitsandbytes PUBLIC cxx_std_14)
+
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 13.1)
+endif()
 
 
 if(BUILD_CUDA)
@@ -119,6 +150,11 @@ endif()
 
 if(WIN32)
     set_target_properties(bitsandbytes PROPERTIES PREFIX "lib")
+endif()
+
+if(BUILD_MPS)
+    add_dependencies(bitsandbytes metallib)
+    target_link_libraries(bitsandbytes objc "-framework Foundation" "-framework Metal" "-framework MetalPerformanceShaders" "-framework MetalPerformanceShadersGraph")
 endif()
 
 set_target_properties(bitsandbytes
