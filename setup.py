@@ -9,6 +9,7 @@ from setuptools import Extension, find_packages, setup
 
 libs = list(glob.glob("./bitsandbytes/libbitsandbytes*.so"))
 libs += list(glob.glob("./bitsandbytes/libbitsandbytes*.dll"))
+libs += list(glob.glob("./bitsandbytes/libbitsandbytes*.dylib"))
 libs = [os.path.basename(p) for p in libs]
 print("libs:", libs)
 
