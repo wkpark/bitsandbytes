@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-shared-libs:
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -15,23 +15,38 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.10', '3.11']
-        cuda-version: ['11.8', '12.1']
+        arch: [x86_64, aarch64]
         build_type: [Release]
-        c_compiler: [gcc, cl]
+        c_compiler: [gcc, clang, cl]
         include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
         exclude:
           - os: ubuntu-latest
             c_compiler: cl
+          - os: ubuntu-latest
+            c_compiler: clang
           - os: windows-latest
             c_compiler: gcc
+          - os: windows-latest
+            c_compiler: clang
+          - os: macos-latest
+            c_compiler: gcc
+          - os: macos-latest
+            c_compiler: cl
+          - os: macos-latest
+            arch: x86_64
+          - os: windows-latest
+            arch: aarch64
 
     steps:
     - uses: actions/checkout@v4
@@ -42,7 +57,106 @@ jobs:
 
     - name: Set up MSVC
       if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@v1.12.1
+      uses: ilammy/msvc-dev-cmd@v1.13.0
+      with:
+        arch: amd64
+
+    - name: Set reusable strings
+      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Prep build
+      run: python3 -m pip install cmake==3.27.9 ninja setuptools wheel
+
+    - name: Configure CPU
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -G Ninja
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DBUILD_CUDA=OFF
+        -S ${{ github.workspace }}
+
+    - name: Build CPU
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+    - name: Configure MPS
+      if: matrix.os == 'macos-latest'
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -G Ninja
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DBUILD_CUDA=OFF
+        -DBUILD_MPS=ON
+        -S ${{ github.workspace }}
+
+    - name: Build MPS
+      if: matrix.os == 'macos-latest'
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+    - name: Copy libraries
+      shell: bash
+      run: |
+        mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}/${{ matrix.python-version }}
+        ( shopt -s nullglob && cp -a bitsandbytes/*.{so,dylib,dll} output/${{ matrix.os }}/${{ matrix.arch }}/${{ matrix.python-version }} )
+
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4.3.0
+      with:
+        name: shared_library-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.arch }}
+        path: output/*
+
+
+  build-shared-libs-cuda:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
+      fail-fast: false
+
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.10', '3.11']
+        cuda-version: ['11.8', '12.1']
+        arch: [x86_64, aarch64]
+        build_type: [Release]
+        c_compiler: [gcc, clang, cl]
+        include:
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+        exclude:
+          - os: ubuntu-latest
+            c_compiler: cl
+          - os: ubuntu-latest
+            c_compiler: clang
+          - os: windows-latest
+            c_compiler: gcc
+          - os: windows-latest
+            c_compiler: clang
+          - os: windows-latest
+            arch: aarch64
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up MSVC
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: amd64
 
@@ -137,19 +251,12 @@ jobs:
     - name: Build NOBLASLT
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-    - name: Configure CPU
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -G Ninja ${{ env.DCMAKE_CUDA_COMPILER }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -DNO_CUBLASLT=ON
-        -DBUILD_CUDA=OFF
-        -S ${{ github.workspace }}
+    - name: Copy libraries
+      shell: bash
+      run: |
+        mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}/${{ matrix.python-version }}
+        ( shopt -s nullglob && cp -a bitsandbytes/*.{so,dylib,dll} output/${{ matrix.os }}/${{ matrix.arch }}/${{ matrix.python-version }} )
 
-    - name: Build CPU
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
@@ -157,17 +264,58 @@ jobs:
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest --build-config ${{ matrix.build_type }}
 
-    - name: Build dist
-      shell: bash -el {0}
-      run: |
-        python -m pip install build
-        python -m build --wheel
-        mkdir dist/cu${{ matrix.cuda-version }}
-        mv dist/bitsandbytes*.* dist/cu${{ matrix.cuda-version }}/
-
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4.3.0
       with:
-        name: bitsandbytes-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.cuda-version }}
+        name: shared_library_cuda-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.cuda-version }}-${{ matrix.arch }}
+        path: output/*
+
+
+  build-wheels:
+    needs:
+    - build-shared-libs
+    - build-shared-libs-cuda
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11"]
+        arch: [x86_64, aarch64]
+        exclude:
+          - os: windows-latest # This probably requres arm64 Windows agents
+            arch: aarch64
+          - os: macos-latest
+            arch: x86_64
+
+    steps:
+    # Check out code
+    - uses: actions/checkout@v4
+    # Download shared libraries
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        merge-multiple: true
+        path: output/
+    - name: Copy correct platform shared libraries
+      shell: bash
+      run: |
+        cp output/${{ matrix.os }}/${{ matrix.arch }}/${{ matrix.python-version }}/* bitsandbytes/
+    # Set up the Python version needed
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+
+    - name: Install build package
+      shell: bash
+      run: pip install build
+    - name: Build wheel
+      shell: bash
+      run: python -m build . --wheel
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: bdist_wheel-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.arch }}
         path: |
           ${{ github.workspace }}/dist/
