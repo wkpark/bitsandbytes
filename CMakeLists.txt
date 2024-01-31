@@ -112,6 +112,8 @@ endif()
 set_target_properties(bitsandbytes PROPERTIES OUTPUT_NAME "bitsandbytes_${LIBSUFFIX}")
 # Set the output name of the CUDA library
 if(MSVC)
+    set_target_properties(bitsandbytes PROPERTIES PREFIX "lib")
+
     set_target_properties(bitsandbytes PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE bitsandbytes)
     set_target_properties(bitsandbytes PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG bitsandbytes)
     set_target_properties(bitsandbytes PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE bitsandbytes)
