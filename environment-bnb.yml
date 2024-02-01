@@ -8,7 +8,6 @@ channels:
 dependencies:
   - python
   - accelerate
-  - einops
   - scipy
   - transformers
   - pytest
