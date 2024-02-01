@@ -9,7 +9,6 @@ dependencies:
   - python
   - accelerate
   - scipy
-  - transformers
   - pytest
   - pytest-cases
   - ipython
