@@ -7,7 +7,6 @@ channels:
 
 dependencies:
   - python
-  - accelerate
   - scipy
   - pytest
   - pytest-cases
