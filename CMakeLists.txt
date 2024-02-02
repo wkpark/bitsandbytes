@@ -106,12 +106,12 @@ elseif(BUILD_MPS)
                    DEPENDS "${METAL_SOURCE}"
                    COMMENT "Compile Metal kernels"
                    VERBATIM)
-    add_custom_command(OUTPUT "mps_kernels.metallib"
-                   COMMAND xcrun metallib "mps_kernels.air" -o "mps_kernels.metallib"
+    add_custom_command(OUTPUT "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib"
+                   COMMAND xcrun metallib "mps_kernels.air" -o "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib"
                    DEPENDS "mps_kernels.air"
                    COMMENT "Build Metallib"
                    VERBATIM)
-    add_custom_target(metallib DEPENDS "mps_kernels.metallib")
+    add_custom_target(metallib DEPENDS "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib")
     set(GPU_SOURCES csrc/mps_ops.mm)
 else()
     message(STATUS "Building CPU Only")
@@ -123,7 +123,7 @@ else()
 endif()
 
 set_source_files_properties(${CPP_FILES} PROPERTIES LANGUAGE CXX)
-add_library(bitsandbytes SHARED ${SRC_FILES})
+add_library(bitsandbytes SHARED ${SRC_FILES} ${GPU_SOURCES})
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_include_directories(bitsandbytes PUBLIC csrc include)
 target_compile_features(bitsandbytes PUBLIC cxx_std_14)
