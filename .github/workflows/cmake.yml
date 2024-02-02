@@ -235,7 +235,7 @@ jobs:
       shell: bash
       run: |
         mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}
-        ( shopt -s nullglob && cp -a bitsandbytes/*.{so,dylib,dll} output/${{ matrix.os }}/${{ matrix.arch }} )
+        ( shopt -s nullglob && cp -a bitsandbytes/*.{so,dylib,dll,metallib} output/${{ matrix.os }}/${{ matrix.arch }} )
 
 
     - name: Upload Build Artifacts
