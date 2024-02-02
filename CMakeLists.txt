@@ -101,13 +101,17 @@ elseif(BUILD_MPS)
     project(bitsandbytes LANGUAGES CXX OBJCXX)
     add_compile_definitions(BUILD_MPS)
     set(METAL_SOURCE csrc/mps_kernels.metal)
-    add_custom_command(OUTPUT "bitsandbytes/bitsandbytes.metallib"
-                   COMMAND xcrun metal -c -o "${CMAKE_BINARY_DIR}/bitsandbytes.air" "${CMAKE_SOURCE_DIR}/${METAL_SOURCE}"
-                   COMMAND xcrun metallib "${CMAKE_BINARY_DIR}/bitsandbytes.air" -o "${CMAKE_SOURCE_DIR}/bitsandbytes/bitsandbytes.metallib"
+    add_custom_command(OUTPUT "mps_kernels.air"
+                   COMMAND xcrun metal -c -O2 "${CMAKE_SOURCE_DIR}/${METAL_SOURCE}"
                    DEPENDS "${METAL_SOURCE}"
-                   COMMENT "Compiling Metal kernels"
+                   COMMENT "Compile Metal kernels"
                    VERBATIM)
-    add_custom_target(metallib DEPENDS "bitsandbytes/bitsandbytes.metallib")
+    add_custom_command(OUTPUT "mps_kernels.metallib"
+                   COMMAND xcrun metallib "mps_kernels.air" -o "mps_kernels.metallib"
+                   DEPENDS "mps_kernels.air"
+                   COMMENT "Build Metallib"
+                   VERBATIM)
+    add_custom_target(metallib DEPENDS "mps_kernels.metallib")
     set(GPU_SOURCES csrc/mps_ops.mm)
 else()
     message(STATUS "Building CPU Only")
