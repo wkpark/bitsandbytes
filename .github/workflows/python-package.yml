@@ -111,15 +111,20 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         arch: [x86_64, aarch64]
-        cuda-version: ['11.8', '12.1']
+        cuda-version: ['11.8.0', '12.1.1']
         build_type: [Release]
         exclude:
           - os: windows-latest # This probably requires arm64 Windows agents
             arch: aarch64
     runs-on: ${{ matrix.os }} # One day, we could run them on native agents. Azure supports this now but it's planned only for Q3 2023 for hosted agents
+    container:
+      image: ${{ matrix.os == 'windows-latest' && 'null' || format('nvidia/cuda:{0}-{1}', matrix.cuda-version, 'devel-ubuntu22.04') }}
+      volumes:
+        - /home/runner/work:/home/runner/work
     steps:
       # Check out code
     - uses: actions/checkout@v4
+      # Linux: We use Docker to build cross platform Cuda (aarch64 is built in emulation)
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
@@ -157,6 +162,13 @@ jobs:
         python-version: "3.10"
         mamba-version: "*"
 
+    - name: Setup Docker image
+      if: startsWith(matrix.os, 'ubuntu')
+      shell: bash
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y sudo cmake
+
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
       id: strings
@@ -175,13 +187,13 @@ jobs:
         fi
         addon=""
         cuda_version=${{ matrix.cuda-version }}
-        [ "$cuda_version" = "12.1" ] && [ "${{ matrix.os }}" = "ubuntu-latest" ] && addon="cuda-cudart-static cuda-nvrtc"
-        [ "$cuda_version" = "12.1" ] && [ "${{ matrix.os }}" = "windows-latest" ] && addon="cuda-nvrtc"
-        [ "$cuda_version" = "11.8" ] && cuda_version="11.8.0"
-        [ "$cuda_version" = "12.1" ] && cuda_version="12.1.1"
+        [ "$cuda_version" = "12.1.1" ] && [ "${{ matrix.os }}" = "ubuntu-latest" ] && addon="cuda-cudart-static cuda-nvrtc"
+        [ "$cuda_version" = "11.8.0" ] && [ "${{ matrix.os }}" = "windows-latest" ] && addon="cuda-nvrtc"
+        [ "$cuda_version" = "11.8.0" ] && cuda__version="11.8"
+        [ "$cuda_version" = "12.1.1" ] && cuda__version="12.1"
 
-        conda install pytorch-cuda=${{ matrix.cuda-version }} -c pytorch # it's dependency not correctly resolved sometime
-        conda install cuda-python=${{ matrix.cuda-version }} cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
+        conda install pytorch-cuda=$cuda__version -c pytorch # it's dependency not correctly resolved sometime
+        conda install cuda-python=$cuda__version cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
 
         CUDA_HOME="${{ env.CONDA }}/envs/bnb-env"
         echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
