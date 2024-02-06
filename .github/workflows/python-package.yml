@@ -45,6 +45,12 @@ jobs:
     steps:
       # Check out code
     - uses: actions/checkout@v4
+    - name: Allow cross-compile on aarch64
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
+      run: |
+        # Allow cross-compile on aarch64
+        sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
     - name: Setup cmake
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
@@ -77,11 +83,14 @@ jobs:
           echo CXX_COMPILER=g++ >> "$GITHUB_ENV"
         fi
 
+        if [ "${{ matrix.os }}" = "macos-latest" -a "${{ matrix.arch }}" == "aarch64" ]; then
+          echo DCMAKE_OSX_ARCHITECTURES=-DCMAKE_OSX_ARCHITECTURES=arm64 >> "$GITHUB_ENV"
+        fi
 
     - name: Configure CPU
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -G Ninja
+        -G Ninja ${{ env.DCMAKE_OSX_ARCHITECTURES }}
         -DCMAKE_CXX_COMPILER=${{ env.CXX_COMPILER }}
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DCOMPUTE_BACKEND=cpu
@@ -175,6 +184,12 @@ jobs:
       shell: bash
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Allow cross-compile on aarch64
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
+      run: |
+        # Allow cross-compile on aarch64
+        sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
     - name: CUDA Toolkit
       shell: bash -el {0}
