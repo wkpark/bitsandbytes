@@ -41,9 +41,9 @@ jobs:
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
         cmake-version: '3.26.x'
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
-      if: ${{ startsWith(matrix.os, 'windows') }}
+    - name: Setup MSVC
+      if: startsWith(matrix.os, 'windows')
+      uses: ilammy/msvc-dev-cmd@v1.13.0
       # Compile C++ code
     - name: Build C++
       shell: bash
@@ -60,11 +60,7 @@ jobs:
         else
           cmake -DCOMPUTE_BACKEND=cpu .
         fi
-        if [ ${build_os:0:7} == windows ]; then
-          pwsh -Command "msbuild bitsandbytes.vcxproj /property:Configuration=Release"
-        else
-          make
-        fi
+        cmake --build . --config Release
         mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}
         ( shopt -s nullglob && cp bitsandbytes/*.{so,dylib,dll} output/${{ matrix.os }}/${{ matrix.arch }}/ )
     - name: Upload build artifact
@@ -118,9 +114,9 @@ jobs:
             - nvidia/label/cuda-${{ matrix.cuda_version }}
             - conda-forge
           channel_priority: strict
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
-      if: ${{ startsWith(matrix.os, 'windows') }}
+    - name: Setup MSVC
+      if: startsWith(matrix.os, 'windows')
+      uses: ilammy/msvc-dev-cmd@v1.13.0
       # Compile C++ code
     - name: Build C++
       shell: bash
@@ -128,6 +124,7 @@ jobs:
         set -ex
         build_os=${{ matrix.os }}
         build_arch=${{ matrix.arch }}
+        [[ "${{ matrix.os }}" = windows-* ]] && python3 -m pip install ninja
         for NO_CUBLASLT in ON OFF; do
           if [ ${build_os:0:6} == ubuntu ]; then
             image=nvidia/cuda:${{ matrix.cuda_version }}-devel-ubuntu22.04
@@ -136,10 +133,10 @@ jobs:
               "apt-get update \
               && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake \
               && cmake -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${NO_CUBLASLT} . \
-              && make"
+              && cmake --build ."
           else
-            cmake -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${NO_CUBLASLT} .
-            pwsh -Command "msbuild bitsandbytes.vcxproj /property:Configuration=Release"
+            cmake -G Ninja -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${NO_CUBLASLT} -DCMAKE_BUILD_TYPE=Release -S .
+            cmake --build . --config Release
           fi
         done
         mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}
