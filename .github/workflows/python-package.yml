@@ -184,7 +184,7 @@ jobs:
         conda install pytorch-cuda=$cuda__version -c pytorch # it's dependency not correctly resolved sometime
         conda install cuda-python=$cuda__version cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
         if [[ "${{ matrix.os }}" = ubuntu-* ]] && [[ "${{ matrix.arch }}" = "aarch64" ]]; then
-            CONDA_SUBDIR=linux-aarch64 conda --no-deps install cuda-cudart-dev libcusparse-dev libcublas-dev -c "nvidia/label/cuda-$cuda_version"
+            CONDA_SUBDIR=linux-aarch64 conda install --no-deps cuda-cudart-dev libcusparse-dev libcublas-dev -c "nvidia/label/cuda-$cuda_version"
         fi
 
         CUDA_HOME="${{ env.CONDA }}/envs/bnb-env"
@@ -220,7 +220,6 @@ jobs:
       run: mamba env update -n bnb-env -f environment-bnb.yml
 
     - name: Prep build
-      if: startsWith(matrix.os, 'windows')
       run: python -m pip install cmake==3.27.9 ninja
 
     - name: Build CUDA
