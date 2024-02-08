@@ -182,7 +182,7 @@ jobs:
         [[ "$cuda_version" = 12.1.* ]] && cuda__version="12.1"
 
         conda install pytorch-cuda=$cuda__version -c pytorch # it's dependency not correctly resolved sometime
-        conda install cuda-python=$cuda__version cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
+        conda install cuda-python=$cuda__version cuda-cudart-dev libcusparse-dev libcublas-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-runtime $addon -c "nvidia/label/cuda-$cuda_version"
         if [[ "${{ matrix.os }}" = ubuntu-* ]] && [[ "${{ matrix.arch }}" = "aarch64" ]]; then
             CONDA_SUBDIR=linux-aarch64 conda install --no-deps -S --override-channels cuda-cudart libcusparse libcublas -c "nvidia/label/cuda-$cuda_version/linux-aarch64"
         fi
