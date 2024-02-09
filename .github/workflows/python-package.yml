@@ -180,7 +180,7 @@ jobs:
         [[ "$cuda_version" = 11.8.* ]] && cuda__version="11.8"
         [[ "$cuda_version" = 12.1.* ]] && cuda__version="12.1"
 
-        conda install cuda-nvcc cuda-nvtx libcusparse-dev libcublas-dev cuda-cudart cuda-cudart-dev $addon -c "nvidia/label/cuda-$cuda_version"
+        mamba install cuda-nvcc cuda-nvtx libcusparse-dev libcublas-dev cuda-cudart cuda-cudart-dev $addon -c "nvidia/label/cuda-$cuda_version"
 
         CUDA_HOME="${{ env.CONDA }}/envs/bnb-env"
         echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
