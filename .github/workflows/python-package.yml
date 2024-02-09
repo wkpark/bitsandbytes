@@ -99,14 +99,25 @@ jobs:
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
         cmake-version: '3.26.x'
-      # Windows: We install Cuda on the agent (slow)
-    - uses: Jimver/cuda-toolkit@v0.2.14
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v1
       if: startsWith(matrix.os, 'windows')
-      id: cuda-toolkit
       with:
-        cuda: ${{ matrix.cuda_version }}
-        method: 'local'
-        # sub-packages: '["nvcc","cudart","nvrtc_dev","cublas_dev","cusparse_dev","visual_studio_integration"]'
+        environment-name: bnb-env
+        init-shell: bash
+        create-args: >-
+          cuda-nvcc
+          cuda-nvtx
+          libcusparse
+          cuda-cudart
+          libcusparse-dev
+          libcublas-dev
+          cuda-cudart-dev
+        condarc: |
+          channels:
+            - nvidia/label/cuda-${{ matrix.cuda_version }}
+            - conda-forge
+          channel_priority: strict
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1.1
       if: ${{ startsWith(matrix.os, 'windows') }}
