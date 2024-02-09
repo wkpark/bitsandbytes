@@ -78,6 +78,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         arch: [x86_64, aarch64]
         cuda_version: ['12.1.0']
+        nocublaslt: [ON, OFF]
         exclude:
           - os: windows-latest # This probably requires arm64 Windows agents
             arch: aarch64
@@ -133,20 +134,18 @@ jobs:
         build_os=${{ matrix.os }}
         build_arch=${{ matrix.arch }}
         [[ "${{ matrix.os }}" = windows-* ]] && python3 -m pip install ninja
-        for NO_CUBLASLT in ON OFF; do
           if [ ${build_os:0:6} == ubuntu ]; then
             image=nvidia/cuda:${{ matrix.cuda_version }}-devel-ubuntu22.04
             echo "Using image $image"
             docker run --platform linux/$build_arch -i -w /src -v $PWD:/src $image sh -c \
               "apt-get update \
               && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake \
-              && cmake -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${NO_CUBLASLT} . \
+              && cmake -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${{ matrix.nocublaslt }} . \
               && cmake --build ."
           else
             cmake -G Ninja -DCOMPUTE_BACKEND=cuda -DNO_CUBLASLT=${NO_CUBLASLT} -DCMAKE_BUILD_TYPE=Release -S .
             cmake --build . --config Release
           fi
-        done
         mkdir -p output/${{ matrix.os }}/${{ matrix.arch }}
         ( shopt -s nullglob && cp bitsandbytes/*.{so,dylib,dll} output/${{ matrix.os }}/${{ matrix.arch }}/ )
     - name: Upload build artifact
