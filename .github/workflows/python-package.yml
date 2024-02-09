@@ -91,7 +91,7 @@ jobs:
       uses: docker/setup-qemu-action@v2
       # On Linux we use CMake within Docker
     - name: Setup cmake
-      if: ${{ !startsWith(matrix.os, 'x') }}
+      if: ${{ startsWith(matrix.os, 'x') }}
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
         cmake-version: '3.26.x'
