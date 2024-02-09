@@ -110,7 +110,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         arch: ${{ startsWith(github.ref, 'refs/tags') && fromJson('["x86_64","aarch64"]') || fromJson('["x86_64"]') }}
-        cuda-version: ${{ startsWith(github.ref, 'refs/tags') && fromJson('["11.8.0","12.1.1"]') || fromJson('["12.1.1"]') }}
+        cuda-version: ["11.8.0","12.1.1"]
+        #cuda-version: ${{ startsWith(github.ref, 'refs/tags') && fromJson('["11.8.0","12.1.1"]') || fromJson('["12.1.1"]') }}
         build_type: [Release]
         exclude:
           - os: windows-latest # This probably requires arm64 Windows agents
@@ -162,7 +163,7 @@ jobs:
       with:
         auto-update-conda: true
         activate-environment: bnb-env
-        environment-file: environment-bnb.yml
+        channels: conda-forge,nvidia
         use-only-tar-bz2: false
         auto-activate-base: true
         python-version: "3.10"
@@ -179,8 +180,7 @@ jobs:
         [[ "$cuda_version" = 11.8.* ]] && cuda__version="11.8"
         [[ "$cuda_version" = 12.1.* ]] && cuda__version="12.1"
 
-        conda install pytorch-cuda=$cuda__version -c pytorch # it's dependency not correctly resolved sometime
-        conda install cuda-python=$cuda__version cuda-libraries-dev cuda-nvcc cuda-nvtx cuda-cupti cuda-cudart cuda-cudart-dev cuda-runtime cuda-libraries $addon -c "nvidia/label/cuda-$cuda_version"
+        conda install cuda-nvcc cuda-nvtx libcusparse-dev libcublas-dev cuda-cudart cuda-cudart-dev $addon -c "nvidia/label/cuda-$cuda_version"
 
         CUDA_HOME="${{ env.CONDA }}/envs/bnb-env"
         echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
@@ -208,9 +208,9 @@ jobs:
         [[ "${{ env.GITHUB_REF }}" = refs/tags/* ]] && COMPUTE_CAPABILITY="50;52;60;61;62;70;72;75;80;86;87;89;90"
         echo "COMPUTE_CAPABILITY=$COMPUTE_CAPABILITY" >> "$GITHUB_ENV"
 
-    - name: Update environment
-      if: startsWith(matrix.os, 'windows')
-      run: mamba env update -n bnb-env -f environment-bnb.yml
+    #- name: Update environment
+    #  if: startsWith(matrix.os, 'windows')
+    #  run: mamba env update -n bnb-env -f environment-cache.yml
 
     - name: Prep build
       if: startsWith(matrix.os, 'windows')
