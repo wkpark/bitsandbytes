@@ -114,6 +114,13 @@ jobs:
             - nvidia/label/cuda-${{ matrix.cuda_version }}
             - conda-forge
           channel_priority: strict
+    - name: Setup CUDA
+      if: startsWith(matrix.os, 'windows')
+      shell: bash -el {0}
+      run: |
+        CUDA_HOME="${{ env.MAMBA_ROOT_PREFIX }}/envs/bnb-env"
+        echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
+        echo CUDA_PATH=$CUDA_HOME >> "$GITHUB_ENV"
     - name: Setup MSVC
       if: startsWith(matrix.os, 'windows')
       uses: ilammy/msvc-dev-cmd@v1.13.0
