@@ -149,25 +149,26 @@ jobs:
       #uses: microsoft/setup-msbuild@v1.1 # to use msbuild
       uses: ilammy/msvc-dev-cmd@v1.13.0 # to use cl
       # Check out dependencies code
-    - name: Setup Mambaforge
-      if: startsWith(matrix.os, 'windows')
-      uses: conda-incubator/setup-miniconda@v3.0.1
-      with:
-        miniforge-variant: Mambaforge
-        miniforge-version: latest
-        activate-environment: bnb-env
-        use-mamba: true
 
-    - uses: conda-incubator/setup-miniconda@v3.0.1
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v1
       if: startsWith(matrix.os, 'windows')
       with:
-        auto-update-conda: true
-        activate-environment: bnb-env
-        channels: conda-forge,nvidia
-        use-only-tar-bz2: false
-        auto-activate-base: true
-        python-version: "3.10"
-        mamba-version: "*"
+        environment-name: bnb-env
+        init-shell: bash
+        create-args: >-
+          python=3.10
+          cuda-nvcc
+          cuda-nvtx
+          libcusparse
+          cuda-cudart
+          libcusparse-dev
+          libcublas-dev
+          cuda-cudart-dev
+        condarc: |
+          channels:
+            - conda-forge
+            - nvidia/label/cuda-${{ matrix.cuda-version }}
 
     - name: Setup CUDA
       if: startsWith(matrix.os, 'windows')
@@ -180,7 +181,7 @@ jobs:
         [[ "$cuda_version" = 11.8.* ]] && cuda__version="11.8"
         [[ "$cuda_version" = 12.1.* ]] && cuda__version="12.1"
 
-        mamba install cuda-nvcc cuda-nvtx libcusparse-dev libcublas-dev cuda-cudart cuda-cudart-dev $addon -c "nvidia/label/cuda-$cuda_version"
+        #mamba install cuda-nvcc cuda-nvtx libcusparse-dev libcublas-dev cuda-cudart cuda-cudart-dev $addon -c "nvidia/label/cuda-$cuda_version"
 
         CUDA_HOME="${{ env.CONDA }}/envs/bnb-env"
         echo CUDA_HOME=$CUDA_HOME >> "$GITHUB_ENV"
