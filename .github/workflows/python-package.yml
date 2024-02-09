@@ -157,7 +157,6 @@ jobs:
         environment-name: bnb-env
         init-shell: bash
         create-args: >-
-          python=3.10
           cuda-nvcc
           cuda-nvtx
           libcusparse
@@ -167,8 +166,9 @@ jobs:
           cuda-cudart-dev
         condarc: |
           channels:
-            - conda-forge
             - nvidia/label/cuda-${{ matrix.cuda-version }}
+            - conda-forge
+          channel_priority: strict
 
     - name: Setup CUDA
       if: startsWith(matrix.os, 'windows')
