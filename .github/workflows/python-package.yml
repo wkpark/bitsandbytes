@@ -51,10 +51,6 @@ jobs:
         # Allow cross-compile on aarch64
         sudo apt-get install -y g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
-    - name: Setup cmake
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.26.x'
     - name: Setup MSVC
       if: startsWith(matrix.os, 'windows')
       #uses: microsoft/setup-msbuild@v1.1 # to use msbuild
@@ -123,12 +119,6 @@ jobs:
     - name: Set up Docker multiarch
       if: startsWith(matrix.os, 'ubuntu')
       uses: docker/setup-qemu-action@v2
-      # On Linux we use CMake within Docker
-    - name: Setup cmake
-      if: ${{ !startsWith(matrix.os, 'ubuntu') }}
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.26.x'
       # Windows: We install Cuda on the agent (slow)
     - uses: Jimver/cuda-toolkit@v0.2.14
       if: startsWith(matrix.os, 'windows')
@@ -202,8 +192,8 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake python3 python3-pip
-          # install cmake, ninja to prepare cmake
-          python3 -m pip install cmake==3.27.9 ninja
+          # install ninja to use -G ninja
+          python3 -m pip install ninja
 
           for NO_CUBLASLT in OFF ON; do
             cmake -B build \
